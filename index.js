@@ -5,7 +5,7 @@ const fs = require('fs')
 
 async function start() {
     let uuid, redirect_uri, wxuin, wxsid, webwx_data_ticket
-    rp.get({
+    await rp.get({
         url: `https://login.weixin.qq.com /jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new& amp;lang=zh_CN&_=${new Date().getTime()}`
     }).then(body => {
         uuid = parse(body)['window.QRLogin.uuid']
@@ -48,21 +48,6 @@ async function start() {
         })
     }).then(body => {
         ({ wxuin, wxsid, webwx_data_ticket } = parse(jar.getCookieString(redirect_uri)));
-        console.log(wxuin, wxsid, webwx_data_ticket)
-        console.log({
-            url: `https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=${new Date().getTime()}`,
-            body: JSON.stringify({
-                "BaseRequest": {
-                    "Uin": wxuin,
-                    "Sid": wxsid,
-                    "Skey": "",
-                    "DeviceID": "e456470324744989"
-                }
-            }),
-            headers: {
-                Cookie: `wxuin=${wxuin}; wxsid=${wxsid}; webwx_data_ticket=${webwx_data_ticket}`
-            }
-        })
         return rp.post({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=144835077100`,
             body: JSON.stringify({
@@ -79,7 +64,9 @@ async function start() {
         })
 
     }).then(body => {
-        console.log(body)
+        fs.writeFileSync('first.json', body)
+        console.log(JSON.parse(body))
+        console.log(wxuin, wxsid, webwx_data_ticket)
     })
 }
 
@@ -93,4 +80,14 @@ function parse(source) {
     return retJson
 }
 
-start()
+// start()
+
+rp.post({
+    url: `https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r=144835077100`,
+    body: JSON.stringify({}),
+    headers: {
+        'Cookie': `wxuin=1134794182; wxsid=ErMKFxi0oyzG7OJq; webwx_data_ticket=gSei+kZ5AvnYSHXpVRVAcw2J`
+    }
+}).then(body => {
+    console.log(body)
+})

@@ -49,7 +49,7 @@ async function start() {
     }).then(body => {
         ({ wxuin, wxsid, webwx_data_ticket } = parse(jar.getCookieString(redirect_uri)));
         return rp.post({
-            url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=144835077100`,
+            url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=${new Date().getTime()}`,
             body: JSON.stringify({
                 "BaseRequest": {
                     "Uin": wxuin,
@@ -65,8 +65,17 @@ async function start() {
 
     }).then(body => {
         fs.writeFileSync('first.json', body)
-        console.log(JSON.parse(body))
+        // console.log(JSON.parse(body))
+        fs.writeFileSync('jar.txt', JSON.stringify(jar))
         console.log(wxuin, wxsid, webwx_data_ticket)
+        rp.get({
+            url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?type=ex&&r=${new Date().getTime()}`,
+            headers: {
+                'Cookie': `wxuin=${wxuin}; wxsid=${wxsid}; webwx_data_ticket=${webwx_data_ticket}`
+            }
+        }).then(body => {
+            console.log(body)
+        })
     })
 }
 
@@ -82,8 +91,12 @@ function parse(source) {
 
 // start()
 
+let jar = JSON.parse(fs.readFileSync('jar.txt').toString())
+
+let { wxuin, wxsid, webwx_data_ticket } = parse(jar.getCookieString(redirect_uri))
+
 rp.post({
-    url: `https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?r=144835077100`,
+    url: `https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsync?sid=${wxsid}&r=${new Date().getTime()}`,
     body: JSON.stringify({}),
     headers: {
         'Cookie': `wxuin=1134794182; wxsid=ErMKFxi0oyzG7OJq; webwx_data_ticket=gSei+kZ5AvnYSHXpVRVAcw2J`

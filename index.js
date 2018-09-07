@@ -1,12 +1,18 @@
 const request = require('request')
 let jar = request.jar()
-let rp = require('request-promise').defaults({ jar })
+let rp = require('request-promise').defaults({
+    jar
+})
 const fs = require('fs')
+const tool = require('./tool.js')
+
+let uuid, redirect_uri, wxuin, wxsid, webwx_data_ticket, syncKey, i = 1,
+    userName, skey,
+    pass_ticket
 
 async function start() {
-    let uuid, redirect_uri, wxuin, wxsid, webwx_data_ticket, syncKey, i = 1, webwxuvid
     await rp.get({
-        url: `https://login.weixin.qq.com /jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new& amp;lang=zh_CN&_=${new Date().getTime()}`
+        url: `https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new& amp;lang=zh_CN&_=${new Date().getTime()}`
     }).then(body => {
         fs.writeFileSync(i + '.json', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
@@ -17,23 +23,23 @@ async function start() {
         console.log('扫描 qrcode.png 中的二维码以登录')
         while (true) {
             if ((await new Promise(resolve => {
-                rp.get({
-                    url: `https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=${uuid}&tip=1&_=${new Date().getTime()}`
-                }).then(body => {
-                    console.log(body)
-                    let parsedBody = parse(body)
-                    if (parsedBody['window.code'] == 201) {
-                        console.log('扫描成功，请点击确认按钮以登录')
+                    rp.get({
+                        url: `https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=${uuid}&tip=1&_=${new Date().getTime()}`
+                    }).then(body => {
+                        console.log(body)
+                        let parsedBody = parse(body)
+                        if (parsedBody['window.code'] == 201) {
+                            console.log('扫描成功，请点击确认按钮以登录')
+                            resolve(0)
+                        }
+                        if (parsedBody['window.code'] == 200) {
+                            console.log('登录成功!')
+                            redirect_uri = parsedBody['window.redirect_uri']
+                            resolve(1)
+                        }
                         resolve(0)
-                    }
-                    if (parsedBody['window.code'] == 200) {
-                        console.log('登录成功!')
-                        redirect_uri = parsedBody['window.redirect_uri']
-                        resolve(1)
-                    }
-                    resolve(0)
-                })
-            })) === 1) break
+                    })
+                })) === 1) break
             else {
                 await new Promise(resolve => {
                     setTimeout(resolve, 1000)
@@ -41,14 +47,19 @@ async function start() {
             }
         }
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar));
-        ({ wxuin, webwxuvid, webwx_data_ticket } = parse(jar.getCookieString('https://login.weixin.qq.com')));
         return rp.get({
             url: redirect_uri + '&fun=new',
         })
     }).then(body => {
+        pass_ticket = tool.findNode(body, 'pass_ticket')
+        skey = tool.findNode('skey')
         fs.writeFileSync(i + '.txt', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar));
-        ({ wxuin, wxsid, webwx_data_ticket } = parse(jar.getCookieString(redirect_uri)));
+        ({
+            wxuin,
+            wxsid,
+            webwx_data_ticket
+        } = parse(jar.getCookieString(redirect_uri)));
         return rp.post({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=${new Date().getTime()}`,
             body: JSON.stringify({
@@ -65,6 +76,7 @@ async function start() {
         })
 
     }).then(body => {
+        userName = JSON.parse(body).User.UserName
         fs.writeFileSync(i + '.json', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
         // fs.writeFileSync('first.json', body)
@@ -87,9 +99,50 @@ async function start() {
     }).then(body => {
         fs.writeFileSync(i + '.json', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
-        // rp.post({
-        //     url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=`,
-        // })
+        let LocalID = new Date().getTime() * 10000 + Math.floor(Math.random() * 10000)
+        console.log({
+            url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=${pass_ticket}`,
+            body: JSON.stringify({
+                "BaseRequest": {
+                    "Uin": wxuin,
+                    "Sid": wxsid,
+                    "Skey": skey,
+                    "DeviceID": "e45382650334865"
+                },
+                "Msg": {
+                    "Type": 1,
+                    "Content": "Hello, human",
+                    "FromUserName": userName,
+                    "ToUserName": "filehelper",
+                    "LocalID": LocalID,
+                    "ClientMsgId": LocalID
+                },
+                "Scene": 0
+            })
+        })
+        return rp.post({
+            url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=${pass_ticket}`,
+            body: JSON.stringify({
+                "BaseRequest": {
+                    "Uin": wxuin,
+                    "Sid": wxsid,
+                    "Skey": skey,
+                    "DeviceID": "e45382650334865"
+                },
+                "Msg": {
+                    "Type": 1,
+                    "Content": "Hello, human",
+                    "FromUserName": userName,
+                    "ToUserName": "filehelper",
+                    "LocalID": LocalID,
+                    "ClientMsgId": LocalID
+                }
+            })
+        })
+    }).then(body => {
+        console.log(i)
+        fs.writeFileSync(i + '.json', body)
+        fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
     })
 }
 
@@ -101,6 +154,10 @@ function parse(source) {
         retJson[match.groups.key] = match.groups.value
     }
     return retJson
+}
+
+function syncKey() {
+
 }
 
 start()

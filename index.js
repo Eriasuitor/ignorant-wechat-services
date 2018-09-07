@@ -51,9 +51,9 @@ async function start() {
             url: redirect_uri + '&fun=new',
         })
     }).then(body => {
-        pass_ticket = tool.findNode(body, 'pass_ticket')
-        skey = tool.findNode('skey')
-        fs.writeFileSync(i + '.txt', body)
+        pass_ticket = tool.findNode(body, 'pass_ticket');
+        skey = tool.findNode('skey');
+        fs.writeFileSync(i + '.txt', body);
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar));
         ({
             wxuin,
@@ -71,30 +71,29 @@ async function start() {
                 }
             }),
             headers: {
-                'Cookie': `wxuin=${wxuin}; wxsid=${wxsid}; webwx_data_ticket=${webwx_data_ticket}`
+                'Cookie': tool.jarObjStringify(tool.jarObjParse(jar.getCookieString('https://wx2.qq.com')))
             }
         })
 
     }).then(body => {
         userName = JSON.parse(body).User.UserName
-        fs.writeFileSync(i + '.json', body)
-        fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
-        // fs.writeFileSync('first.json', body)
         syncKey = JSON.parse(body).SyncKey.List.map(sk => `${sk.Key}_${sk.Val}`).join('|')
-        // console.log(JSON.parse(body))
         fs.writeFileSync('jar2.json', JSON.stringify(jar))
         console.log(wxuin, wxsid, webwx_data_ticket)
         return rp.get({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?type=ex&&r=${new Date().getTime()}`,
             headers: {
-                'Cookie': `wxuin=${wxuin}; wxsid=${wxsid}; webwx_data_ticket=${webwx_data_ticket}`
+                'Cookie': tool.jarObjStringify(tool.jarObjParse(jar.getCookieString('https://wx2.qq.com')))
             }
         })
     }).then(body => {
         fs.writeFileSync(i + '.json', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
         return rp.get({
-            url: `https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=${new Date().getTime()}&sid=${wxsid}&uin=${wxuin}&deviceid=e45382650334865&synckey=${syncKey}`
+            url: `https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=${new Date().getTime()}&sid=${wxsid}&uin=${wxuin}&deviceid=e45382650334865&synckey=${syncKey}`,
+            headers: {
+                'Cookie': tool.jarObjStringify(tool.jarObjParse(jar.getCookieString('https://wx2.qq.com')))
+            }
         })
     }).then(body => {
         fs.writeFileSync(i + '.json', body)
@@ -122,6 +121,9 @@ async function start() {
         })
         return rp.post({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=${pass_ticket}`,
+            headers: {
+                'Cookie': tool.jarObjStringify(tool.jarObjParse(jar.getCookieString('https://wx2.qq.com')))
+            },
             body: JSON.stringify({
                 "BaseRequest": {
                     "Uin": wxuin,
@@ -156,9 +158,9 @@ function parse(source) {
     return retJson
 }
 
-function syncKey() {
+// function syncKey() {
 
-}
+// }
 
 start()
 

@@ -38,6 +38,7 @@ module.exports = class extends EventEmitter {
 
     async requireScan(qrCodeId, status) {
         let body = await this.rp.get(`https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=${qrCodeId}&tip=1&r=${new Date().getTime()}&_=${new Date().getTime()}`)
+        console.log(rt.parse(body)['window.code'])
         switch (rt.parse(body)['window.code']) {
             case '408':
                 return this.requireScan(qrCodeId, 408)
@@ -83,6 +84,16 @@ module.exports = class extends EventEmitter {
         body = JSON.parse(body)
         this.userName = body.User.UserName
         this.updateSyncKey(body.SyncKey)
+        console.log(this.wxuin,
+            this.wxsid,
+            this.webwx_data_ticket,
+            this.syncKey,
+            this.userName,
+            this.skey,
+            this.pass_ticket,
+            this.syncKeyList)
+        console.log(await this.getContact())
+        return this.syncCheck()
     }
 
     async getContact() {
@@ -97,8 +108,17 @@ module.exports = class extends EventEmitter {
             url: `https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=${new Date().getTime()}&skey=${this.skey}&sid=${this.wxsid}&uin=${this.wxuin}&deviceid=${this.deviceID}&synckey=${this.syncKey}&_=${new Date().getTime()}`,
             headers: this.generalHeaders()
         })
-        let { retcode, selector } = rt.parse(body)['window.synccheck']
-        // if (retcode) // here
+        console.log(body)
+        let { retcode, selector } = JSON.parse(rt.parse(body)['window.synccheck'].replace(/(\w+):/isg, '"$1":'))
+        console.log({ retcode, selector })
+        if (selector != 0) {
+            console.log(1)
+            await this.sync()
+            await new Promise(resolve => {
+                setTimeout(resolve, 3000);
+            })
+        }
+        return this.syncCheck()
     }
 
     async sync() {
@@ -107,7 +127,10 @@ module.exports = class extends EventEmitter {
             headers: this.generalHeaders()
         })
         body = JSON.parse(body)
-        this.updateSyncKey(body.SyncKey)    // here
+        console.log(body)
+        this.updateSyncKey(body.SyncKey)
+        if (body.AddMsgList.length != 0)
+            this.emit('msg', body.AddMsgList)
     }
 
     sendMessage(toUserName, msg) {

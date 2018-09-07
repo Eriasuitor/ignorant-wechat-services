@@ -4,6 +4,8 @@ module.exports = class {
 
     static parse(source) {
         source = source.replace(/\s/g, "")
+        if (source[source.length - 1] != ';')
+            source += ';'
         let re = /(?<key>.+?)="{0,1}(?<value>.+?)"{0,1};/g
         let retJson = {}
         let match

@@ -18,9 +18,9 @@ module.exports = class {
     static cookieStringify(obj) {
         let kvList = []
         for (let key in obj) {
-            kvList.push(`${key} = ${obj[key]}`)
+            kvList.push(`${key}=${obj[key]}`)
         }
-        return kvList.join('; ')
+        return kvList.join(';')
     }
 
     static findNode(source, target) {

@@ -5,6 +5,7 @@ const rp = require('request-promise')
 const rt = require('./request-tool')
 const fs = require('fs')
 const lp = require('./language-packs')
+const Constant = require('./constant')
 
 module.exports = class extends EventEmitter {
     constructor() {
@@ -27,6 +28,7 @@ module.exports = class extends EventEmitter {
     login() {
         this.rp.get(`https://login.wx2.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new&lang=zh_CN&_=${new Date().getTime()}`).then(async body => {
             let qrCodeId = rt.parse(body)['window.QRLogin.uuid']
+            this.emit(Constant.MsgOutType.Qr, `https://login.weixin.qq.com/qrcode/${qrCodeId}`)
             await this.rp.get(`https://login.weixin.qq.com/qrcode/${qrCodeId}`)
                 .pipe(fs.createWriteStream('./qrcode.png'))
             return qrCodeId
@@ -44,18 +46,21 @@ module.exports = class extends EventEmitter {
                 return this.requireScan(qrCodeId, 408)
 
             case '201':
-                if (status != 201) this.info(this.lp.scanSuccess)
+                if (status != 201) {
+                    this.emit(Constant.MsgOutType.Scaned)
+                    this.info(this.lp.scanSuccess)
+                }
                 await new Promise(resolve => {
                     setTimeout(resolve, 1500)
                 })
                 return this.requireScan(qrCodeId, 201)
 
             case '200':
+                this.info('登陆成功')
                 return this.redirect(rt.parse(body)['window.redirect_uri'])
 
             default:
-                this.error('invalid widow.code when login')
-                break;
+                throw new Error('invalid widow.code when login')
         }
 
     }
@@ -83,16 +88,25 @@ module.exports = class extends EventEmitter {
         })
         body = JSON.parse(body)
         this.userName = body.User.UserName
+        this.emit(Constant.MsgOutType.Init, body.User)
         this.updateSyncKey(body.SyncKey)
-        // console.log(await this.getContact())
+        this.persistence()
+        // this.getContact()
         return this.syncCheck()
     }
 
+    persistence() {
+
+    }
+
     async getContact() {
-        return this.rp.get({
+        let contactList = await this.rp.get({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=zh_CN&pass_ticket=${this.pass_ticket}&r=${new Date().getTime()}&seq=0&skey=${this.skey}`,
             headers: this.generalHeaders()
         })
+        contactList = JSON.parse(contactList)
+        // this.info(contactList)
+        this.emit(Constant.MsgOutType.ContactList, contactList.MemberList)
     }
 
     async syncCheck() {
@@ -130,11 +144,12 @@ module.exports = class extends EventEmitter {
             })
         })
         body = JSON.parse(body)
+        console.log(body)
         this.updateSyncKey(body.SyncKey)
+        this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
         for (let i = 0; i < body.AddMsgList.length; i++) {
             console.log(body.AddMsgList[i])
-            this.sendMessage(body.AddMsgList[i].FromUserName, body.AddMsgList[i].FromUserName)
-            this.emit('msg', body.AddMsgList)
+            // this.sendMessage(body.AddMsgList[i].FromUserName, body.AddMsgList[i].FromUserName)
         }
     }
 
@@ -188,6 +203,7 @@ module.exports = class extends EventEmitter {
 
     error(msg, data) {
         console.log(msg, data ? data : '')
+        throw new Error(msg, data)
     }
 
     warn(msg, data) {

@@ -26,11 +26,16 @@ class Server {
                     this.error('unrecgnised msg' + msg)
                 }
                 let wcs
+                let { userId } = msg
                 switch (msg.type) {
                     case Constant.MsgType.New:
-                        let { userId } = msg
+                        let record = this.user2WcServer.get(userId)
+                        if(record) {
+                            record.resendInit()
+                            break
+                        }
                         wcs = new WcServer()
-                        this.info(`user #{userId} create a new wcs`)
+                        this.info(`user ${userId} connect to wcs`)
                         Object.values(Constant.MsgOutType).forEach(type => {
                             wcs.on(type, data => {
                                 fs.appendFileSync('result', JSON.stringify({
@@ -45,11 +50,11 @@ class Server {
                                 }))
                             })
                         })
-                        this.user2WcServer.set(msg.userId, wcs)
+                        this.user2WcServer.set(userId, wcs)
                         wcs.login()
                         break;
                     case Constant.MsgType.Msg:
-                        wcs = this.user2WcServer.get(msg.userId)
+                        wcs = this.user2WcServer.get(userId)
                         wcs.sendMessage(msg.to, msg.content)
                         break;
                     default:

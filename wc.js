@@ -14,7 +14,9 @@ module.exports = class extends EventEmitter {
         this.wxsid
         this.webwx_data_ticket
         this.syncKey
-        this.userName
+        this.user
+        this.contactList
+        this.qrUrl
         this.skey
         this.pass_ticket
         this.syncKeyList
@@ -29,6 +31,7 @@ module.exports = class extends EventEmitter {
         this.rp.get(`https://login.wx2.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new&lang=zh_CN&_=${new Date().getTime()}`).then(async body => {
             let qrCodeId = rt.parse(body)['window.QRLogin.uuid']
             this.emit(Constant.MsgOutType.Qr, `https://login.weixin.qq.com/qrcode/${qrCodeId}`)
+            this.qrUrl = `https://login.weixin.qq.com/qrcode/${qrCodeId}`
             await this.rp.get(`https://login.weixin.qq.com/qrcode/${qrCodeId}`)
                 .pipe(fs.createWriteStream('./qrcode.png'))
             return qrCodeId
@@ -73,6 +76,11 @@ module.exports = class extends EventEmitter {
         return this.init()
     }
 
+    resendInit() {
+        this.emit(Constant.MsgOutType.Qr, this.qrUrl)
+        this.emit(Constant.MsgOutType.Init, this.user)
+    }
+
     async init() {
         let body = await this.rp.post({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxinit?r=${new Date().getTime()}&pass_ticket=${this.pass_ticket}`,
@@ -87,11 +95,11 @@ module.exports = class extends EventEmitter {
             })
         })
         body = JSON.parse(body)
-        this.userName = body.User.UserName
+        this.user = body.User
         this.emit(Constant.MsgOutType.Init, body.User)
         this.updateSyncKey(body.SyncKey)
         this.persistence()
-        // this.getContact()
+        this.getContact()
         return this.syncCheck()
     }
 
@@ -105,15 +113,18 @@ module.exports = class extends EventEmitter {
             headers: this.generalHeaders()
         })
         contactList = JSON.parse(contactList)
+        this.contactList = contactList.MemberList
         // this.info(contactList)
-        this.emit(Constant.MsgOutType.ContactList, contactList.MemberList)
+        // this.emit(Constant.MsgOutType.ContactList, contactList.MemberList)
     }
 
     async syncCheck() {
+        this.info('syncCheck')
         let body = await this.rp.get({
             url: `https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=${new Date().getTime()}&skey=${this.skey}&sid=${this.wxsid}&uin=${this.wxuin}&deviceid=${this.deviceID}&synckey=${this.syncKey}&_=${new Date().getTime()}`,
             headers: this.generalHeaders()
         })
+        this.info(body)
         let { retcode, selector } = JSON.parse(rt.parse(body)['window.synccheck'].replace(/(\w+):/isg, '"$1":'))
         if (selector != 0) {
             if (selector === 7) {
@@ -146,6 +157,24 @@ module.exports = class extends EventEmitter {
         body = JSON.parse(body)
         console.log(body)
         this.updateSyncKey(body.SyncKey)
+        body.AddMsgList.forEach(_ => {
+            let contact = this.contactList.find(c => c.UserName === _.FromUserName) || {}
+            let contact2 = this.contactList.find(c => c.UserName === _.ToUserName) || {}
+            _.From = {
+                NickName: contact.NickName,
+                UserName: contact.UserName,
+                RemarkName: contact.RemarkName,
+                HeadImgUrl: contact.HeadImgUrl,
+                Sex: contact.Sex
+            }
+            _.To = {
+                NickName: contact2.NickName,
+                UserName: contact2.UserName,
+                RemarkName: contact2.RemarkName,
+                HeadImgUrl: contact2.HeadImgUrl,
+                Sex: contact2.Sex
+            }
+        })
         this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
         for (let i = 0; i < body.AddMsgList.length; i++) {
             console.log(body.AddMsgList[i])
@@ -168,7 +197,7 @@ module.exports = class extends EventEmitter {
                 "Msg": {
                     "Type": 1,
                     "Content": msg,
-                    "FromUserName": this.userName,
+                    "FromUserName": this.user.userName,
                     "ToUserName": toUserName,
                     "LocalID": localID,
                     "ClientMsgId": localID

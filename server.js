@@ -1,6 +1,7 @@
 const WebSocket = require('ws')
 const WcServer = require('./wc')
 const fs = require('fs')
+const express = require('express')
 // on(event: 'connection', cb: (this: WebSocket, socket: WebSocket, request: http.IncomingMessage) => void): this;
 //         on(event: 'error', cb: (this: WebSocket, error: Error) => void): this;
 //         on(event: 'headers', cb: (this: WebSocket, headers: string[], request: http.IncomingMessage) => void): this;
@@ -16,7 +17,6 @@ class Server {
             port: 8081
         })
         this.wss.on('connection', socket => {
-
             this.info('new connection', socket)
             socket.on('message', msg => {
                 this.info(msg)
@@ -30,7 +30,7 @@ class Server {
                 switch (msg.type) {
                     case Constant.MsgType.New:
                         let record = this.user2WcServer.get(userId)
-                        if(record) {
+                        if (record) {
                             record.resendInit()
                             break
                         }
@@ -62,7 +62,12 @@ class Server {
                 }
             })
         })
+
         this.info('wcs启动成功')
+    }
+
+    getWcs(userId){
+        return this.user2WcServer.get(userId)
     }
 
     info(msg, data) {
@@ -74,4 +79,23 @@ class Server {
     }
 }
 
-new Server()
+class Api {
+    constructor(wcsServer) {
+        this.wcsServer = wcsServer
+        this.app = express()
+        this.app.get('/contact', getContactList)
+        this.app.listen(8082)
+    }
+
+    getContactList(req, resp){
+        let userId = req.query.userId
+        let wcs = this.wcsServer.getWcs(userId)
+        if(wcs && wcs.contactList) {
+            resp.status = 200
+            resp.json(wcs.contactList)
+        }
+    }
+}
+
+let wcServer = new Server()
+new Api(wcServer)

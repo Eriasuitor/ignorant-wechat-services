@@ -99,7 +99,7 @@ module.exports = class extends EventEmitter {
         this.emit(Constant.MsgOutType.Init, body.User)
         this.updateSyncKey(body.SyncKey)
         this.persistence()
-        this.getContact()
+        await this.getContact()
         return this.syncCheck()
     }
 
@@ -114,6 +114,20 @@ module.exports = class extends EventEmitter {
         })
         contactList = JSON.parse(contactList)
         this.contactList = contactList.MemberList
+        // .map(_ => {
+        //     return {
+        //         userId: _.UserName,
+        //         nickName: _.NickName,
+        //         gender: _.Sex,
+        //         avatar: _.HeadImgUrl,
+        //         avatar_small: _.HeadImgUrl,
+        //         city: _.City,
+        //         type: 'wc',
+        //         status: _.Status,
+        //         signature: _.Signature
+        //     }
+        // })
+        console.log(this.contactList[0])
         // this.info(contactList)
         // this.emit(Constant.MsgOutType.ContactList, contactList.MemberList)
     }
@@ -178,7 +192,7 @@ module.exports = class extends EventEmitter {
         this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
         for (let i = 0; i < body.AddMsgList.length; i++) {
             console.log(body.AddMsgList[i])
-            // this.sendMessage(body.AddMsgList[i].FromUserName, body.AddMsgList[i].FromUserName)
+            // this.sendMessage('filehelper', body.AddMsgList[i].FromUserName)
         }
     }
 
@@ -197,14 +211,14 @@ module.exports = class extends EventEmitter {
                 "Msg": {
                     "Type": 1,
                     "Content": msg,
-                    "FromUserName": this.user.userName,
+                    "FromUserName": this.user.UserName,
                     "ToUserName": toUserName,
                     "LocalID": localID,
                     "ClientMsgId": localID
                 },
                 "Scene": 0
             })
-        })
+        }).then(e => console.log(e))
     }
 
     updateSyncKey(syncKeyList) {

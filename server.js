@@ -54,6 +54,7 @@ class Server {
                         wcs.login()
                         break;
                     case Constant.MsgType.Msg:
+                        console.log(userId)
                         wcs = this.user2WcServer.get(userId)
                         wcs.sendMessage(msg.to, msg.content)
                         break;
@@ -83,8 +84,9 @@ class Api {
     constructor(wcsServer) {
         this.wcsServer = wcsServer
         this.app = express()
-        this.app.get('/contact', getContactList)
+        this.app.get('/contact', this.getContactList)
         this.app.listen(8082)
+        console.log('api启动成功')
     }
 
     getContactList(req, resp){
@@ -93,6 +95,9 @@ class Api {
         if(wcs && wcs.contactList) {
             resp.status = 200
             resp.json(wcs.contactList)
+        }
+        else{
+            resp.status = 404
         }
     }
 }

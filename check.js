@@ -101,6 +101,9 @@ async function start() {
         let LocalID = new Date().getTime() * 10000 + Math.floor(Math.random() * 10000)
         console.log({
             url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=${pass_ticket}`,
+            headers: {
+                'Cookie': tool.jarObjStringify(tool.jarObjParse(jar.getCookieString('https://wx2.qq.com')))
+            },
             body: JSON.stringify({
                 "BaseRequest": {
                     "Uin": wxuin,
@@ -115,8 +118,7 @@ async function start() {
                     "ToUserName": "filehelper",
                     "LocalID": LocalID,
                     "ClientMsgId": LocalID
-                },
-                "Scene": 0
+                }
             })
         })
         return rp.post({

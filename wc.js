@@ -182,7 +182,8 @@ module.exports = class extends EventEmitter {
             msg.From = this.contactList.find(c => c.UserName === msg.FromUserName)
             msg.To = this.contactList.find(c => c.UserName === msg.ToUserName)
             let index = msg.Content.indexOf('<br/>')
-            this.sendMessage(msg.FromUserName, msg.Content.substring(index + 5, msg.Content.length))
+            index === -1 ? index = 0 : index += 5
+            this.sendMessage(msg.FromUserName, msg.Content.substring(index, msg.Content.length))
         })
         this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
     }

@@ -1,1 +1,0 @@
-<error><ret>0</ret><message></message><skey>@crypt_3a7960f6_ce23282657e9f30edac19f8e2bdb671a</skey><wxsid>YlK+3ohOVqGKCI64</wxsid><wxuin>1134794182</wxuin><pass_ticket>t9EmUNyNMHDlwprm6c5CkshhiKoI6aia%2F7eWoIUfqwGtlCOKU2CetxcPlHqhy89b</pass_ticket><isgrayscale>1</isgrayscale></error>

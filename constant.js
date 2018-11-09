@@ -7,8 +7,10 @@ const Constant = {
         Qr: 'qr',
         Scaned: 'scaned',
         ContactList: 'contactList',
+        RequireLogin: 'requireLogin',
         Init: 'init',
-        Msg: 'msg'
+        Msg: 'msg',
+        SendSuccess: 'sendSuccess'
     }
 }
 module.exports = Constant

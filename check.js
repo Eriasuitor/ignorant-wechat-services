@@ -87,6 +87,7 @@ async function start() {
             }
         })
     }).then(body => {
+        fs.writeFileSync('contact' + '.json', body)
         fs.writeFileSync(i + '.json', body)
         fs.writeFileSync(i++ + 'Jar.json', JSON.stringify(jar))
         return rp.get({

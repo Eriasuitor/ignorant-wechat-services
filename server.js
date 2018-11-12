@@ -17,6 +17,7 @@ class Server {
             port: 8081
         })
         this.wss.on('connection', socket => {
+            this.socket = socket
             this.handleSocket(socket)
         })
         this.wss.on('error', err => {
@@ -35,10 +36,19 @@ class Server {
                 switch (msg.type) {
                     case Constant.MsgType.New:
                         this.handleNew(msg.userId, msg.socket)
-                        break;
+                        break
                     case Constant.MsgType.Msg:
                         await this.handleMsg(msg.userId, msg.socket, msg.content, msg.syncId)
-                        break;
+                        break
+                    case Constant.MsgType.Offline:
+                        this.handleOffline(msg.userId)
+                        break
+                    case Constant.MsgType.Online:
+                        this.handleOnline(msg.userId)
+                        break
+                    case Constant.MsgType.Logout:
+                        this.handleLogout(msg.userId)
+                        break
                     default:
                         throw new Error()
                 }
@@ -48,27 +58,44 @@ class Server {
         })
     }
 
-    handleNew(userId, socket) {
+    handleOnline(userId) {
+        let wc = this.getWc(msg.userId)
+        if (!wc) break
+        wc.onLine()
+    }
+
+    handleOffline(userId) {
+        let wc = this.getWc(msg.userId)
+        if (!wc) break
+        wc.offLine()
+    }
+
+    handleNew(userId) {
         let record = this.getWc(userId)
         if (record) return record.resendInit()
         let wc = new Wc()
         this.info('user wc created', { userId })
         wc.on('error', e => {
             this.error(e)
-            this.user2Wc.delete(userId)
+            this.deleteWc(userId)
+
         })
         Object.values(Constant.MsgOutType).forEach(type => {
             wc.on(type, data => {
-                this.debug(JSON.stringify({
-                    userId,
-                    type,
-                    data
-                }) + ',\n')
-                socket.send(JSON.stringify({
-                    userId,
-                    type,
-                    data
-                }))
+                try {
+                    this.debug(JSON.stringify({
+                        userId,
+                        type,
+                        data
+                    }) + ',\n')
+                    this.socket.send(JSON.stringify({
+                        userId,
+                        type,
+                        data
+                    }))
+                } catch (e) {
+                    this.error(e.message)
+                }
             })
         })
         this.setWc(userId, wc)
@@ -92,12 +119,23 @@ class Server {
         }))
     }
 
+    handleLogout(userId) {
+        let wc = this.getWc(userId)
+        if (!wc) return
+        wc.offLine()
+        this.deleteWc(userId)
+    }
+
     setWc(userId, wc) {
         this.user2Wc.set(userId, wc)
     }
 
     getWc(userId) {
         return this.user2Wc.get(userId)
+    }
+
+    deleteWc(userId) {
+        return this.user2Wc.delete(userId)
     }
 
     info(msg, data = '') {

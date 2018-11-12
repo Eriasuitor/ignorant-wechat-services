@@ -1,16 +1,20 @@
 const Constant = {
     MsgType: {
         New: 'new',
-        Msg: 'msg'
+        Msg: 'msg',
+        Offline: 'offline',
+        Online: 'online',
+        Logout: 'logout'
     },
     MsgOutType: {
         Qr: 'qr',
-        Scaned: 'scaned',
+        Scanned: 'scanned',
         ContactList: 'contactList',
         RequireLogin: 'requireLogin',
         Init: 'init',
         Msg: 'msg',
-        SendSuccess: 'sendSuccess'
+        SendSuccess: 'sendSuccess',
+        InitContact: 'initContact'
     }
 }
 module.exports = Constant

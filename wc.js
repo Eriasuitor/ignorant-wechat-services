@@ -16,6 +16,7 @@ module.exports = class extends EventEmitter {
         this.syncKey
         this.user
         this.contactList
+        this.initContact
         this.qrUrl
         this.skey
         this.pass_ticket
@@ -39,7 +40,7 @@ module.exports = class extends EventEmitter {
         let body = await this.rp.get(`https://login.wx2.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxnewloginpage&fun=new&lang=zh_CN&_=${new Date().getTime()}`)
         let qrCodeId = rt.parse(body)['window.QRLogin.uuid']
         this.qrUrl = `https://login.weixin.qq.com/qrcode/${qrCodeId}`
-        this.emit(Constant.MsgOutType.Qr, this.qrUrl)
+        this.emit(Constant.MsgOutType.Qr, { url: this.qrUrl })
         await this.rp.get(this.qrUrl).pipe(fs.createWriteStream('./qrcode.png'))
         this.info(this.lp.requireScan, { url: this.qrUrl })
         return this.generalTry(this.requireScan, qrCodeId)
@@ -47,6 +48,7 @@ module.exports = class extends EventEmitter {
 
     async requireScan(qrCodeId, status) {
         let body = await this.rp.get(`https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=${qrCodeId}&tip=1&r=${new Date().getTime()}&_=${new Date().getTime()}`)
+        this.debug(body)
         let loginStatus = rt.parse(body)['window.code']
         this.debug('login status', { loginStatus })
         switch (loginStatus) {
@@ -54,7 +56,7 @@ module.exports = class extends EventEmitter {
                 return this.generalTry(this.requireScan, qrCodeId, 408)
             case '201':
                 if (status != 201) {
-                    this.emit(Constant.MsgOutType.Scaned)
+                    this.emit(Constant.MsgOutType.Scanned)
                     this.info(this.lp.scanSuccess, { qrCodeId })
                 }
                 await new Promise(resolve => setTimeout(resolve, 3000))
@@ -64,7 +66,7 @@ module.exports = class extends EventEmitter {
                 this.info(this.lp.loginSuccess, { qrCodeId, redirect })
                 return this.generalTry(this.redirect, redirect)
             default:
-                throw new Error('invalid widow.code when login')
+                throw new Error('invalid widow.code when login: ' + loginStatus)
         }
     }
 
@@ -78,7 +80,8 @@ module.exports = class extends EventEmitter {
 
     resendInit() {
         // this.emit(Constant.MsgOutType.Qr, this.qrUrl)
-        this.emit(Constant.MsgOutType.Init, this.user)
+        if (this.user && this.initContact) this.emit(Constant.MsgOutType.Init, this.user)
+        else this.login()
     }
 
     async init() {
@@ -95,6 +98,7 @@ module.exports = class extends EventEmitter {
             })
         })
         body = JSON.parse(body)
+        this.debug('init', body)
         this.user = body.User
         this.emit(Constant.MsgOutType.Init, body.User)
         this.updateSyncKey(body.SyncKey)
@@ -112,7 +116,7 @@ module.exports = class extends EventEmitter {
             // console.log(this)
             return await operation.call(this, ...args)
         } catch (e) {
-            this.break = true
+            this.offLine()
             this.emit('error', e.message)
         }
     }
@@ -128,6 +132,7 @@ module.exports = class extends EventEmitter {
             })
             contactList = JSON.parse(contactList)
             this.contactList = contactList.MemberList
+            this.debug('contact list', contactList)
             return this.contactList
         })
     }
@@ -181,9 +186,9 @@ module.exports = class extends EventEmitter {
              */
             msg.From = this.contactList.find(c => c.UserName === msg.FromUserName)
             msg.To = this.contactList.find(c => c.UserName === msg.ToUserName)
-            let index = msg.Content.indexOf('<br/>')
-            index === -1 ? index = 0 : index += 5
-            this.sendMessage(msg.FromUserName, msg.Content.substring(index, msg.Content.length))
+            // let index = msg.Content.indexOf('<br/>')
+            // index === -1 ? index = 0 : index += 5
+            // this.sendMessage(msg.FromUserName, msg.Content.substring(index, msg.Content.length))
         })
         this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
     }
@@ -217,6 +222,15 @@ module.exports = class extends EventEmitter {
             // if(body.)
             return true
         })
+    }
+
+    offLine() {
+        this.break = true
+    }
+
+    onLine() {
+        this.break = false
+        return this.generalTry(this.syncCheck)
     }
 
     updateSyncKey(syncKeyList) {
@@ -253,5 +267,6 @@ module.exports = class extends EventEmitter {
 
     debug(msg, data) {
         console.log(msg, data ? data : '')
+        require('fs').appendFileSync('result_wc', JSON.stringify({ msg, data }) + '\n')
     }
 }

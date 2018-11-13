@@ -38,7 +38,7 @@ class Server {
                         this.handleNew(msg.userId, msg.socket)
                         break
                     case Constant.MsgType.Msg:
-                        await this.handleMsg(msg.userId, msg.socket, msg.content, msg.syncId)
+                        await this.handleMsg(msg.userId, msg.to, msg.content, msg.syncId)
                         break
                     case Constant.MsgType.Offline:
                         this.handleOffline(msg.userId)
@@ -53,7 +53,7 @@ class Server {
                         throw new Error()
                 }
             } catch (error) {
-                this.error('unrecognized msg' + msg)
+                this.error('unrecognized msg' + JSON.stringify(msg) + error.message)
             }
         })
     }
@@ -72,6 +72,7 @@ class Server {
 
     handleNew(userId) {
         let record = this.getWc(userId)
+        this.debug('user try to login', { userId, record: record != undefined })
         if (record) return record.resendInit()
         let wc = new Wc()
         this.info('user wc created', { userId })
@@ -83,7 +84,7 @@ class Server {
         Object.values(Constant.MsgOutType).forEach(type => {
             wc.on(type, data => {
                 try {
-                    this.debug(JSON.stringify({
+                    this.debug("send message to ic", JSON.stringify({
                         userId,
                         type,
                         data
@@ -102,20 +103,22 @@ class Server {
         wc.login()
     }
 
-    async handleMsg(userId, socket, msg, syncId) {
+    async handleMsg(userId, to, msg, syncId) {
         let wc = this.getWc(userId)
         if (!wc) {
-            return socket.send(JSON.stringify({
+            return this.socket.send(JSON.stringify({
                 userId,
                 type: Constant.MsgOutType.RequireLogin,
                 syncId
             }))
         }
-        let sendResult = await wc.sendMessage(msg.to, msg.content)
-        if (sendResult) socket.send(JSON.stringify({
+        let sendResult = await wc.sendMessage(to, msg)
+        if (sendResult) this.socket.send(JSON.stringify({
             userId,
             type: Constant.MsgOutType.SendSuccess,
-            syncId
+            data: {
+                syncId
+            }
         }))
     }
 
@@ -140,7 +143,7 @@ class Server {
 
     info(msg, data = '') {
         console.log(msg, data)
-        fs.appendFileSync('result', { msg, data })
+        fs.appendFileSync('result', JSON.stringify({ msg, data }) + '\n')
     }
 
     debug(msg, data = '') {
@@ -148,7 +151,7 @@ class Server {
     }
 
     error(msg) {
-        this.info(msg)
+        this.info("error", msg)
     }
 }
 
@@ -157,30 +160,53 @@ class Api {
         if (!wcsServer) this.error(`wcsServer is ${wcsServer}`)
         this.wcsServer = wcsServer
         this.app = express()
-        this.app.get('/contact', this.getContactList)
+        this.app.get('/contact', (req, resp) => {
+            try {
+                let { userId, q } = req.query
+                let wc = this.wcsServer.getWc(userId)
+                this.debug('get contact', { userId, q, wc: wc != undefined })
+                if (wc) {
+                    resp.status(200).json(wc.contactList.filter(_ => _.NickName.search(q) != -1) || [])
+                }
+                else {
+                    resp.sendStatus(404)
+                }
+            }
+            catch (e) {
+                this.error(`get contact list failed, ${JSON.stringify({ query: req.query, e, err: e.message })}`)
+                resp.sendStatus(500)
+            }
+        })
+        this.app.get('/contact/init', (req, resp) => {
+            try {
+                let userId = req.query.userId
+                let wc = this.wcsServer.getWc(userId)
+                this.debug('contact init', { userId, wc: wc != undefined })
+                if (wc) {
+                    resp.status(200).json(wc.initContact || [])
+                }
+                else {
+                    resp.sendStatus(404)
+                }
+            }
+            catch (e) {
+                this.error(`get contact init failed, ${JSON.stringify({ query: req.query, e, err: e, message })}`)
+                resp.sendStatus(500)
+            }
+        })
+        this.app.use(err => {
+            if (err) {
+                this.error(err)
+                res.sendStatus(500)
+            }
+        })
         this.app.listen(8082)
         this.info('api启动成功')
     }
 
-    getContactList(req, resp) {
-        try {
-            let userId = req.query.userId
-            let wc = this.wcsServer.getWc(userId)
-            if (wc) {
-                resp.status(200).json(wc.getContact())
-            }
-            else {
-                resp.sendStatus(404)
-            }
-        }
-        catch (e) {
-            this.error(`get caontact list failed, ${JSON.stringify({ q: req.query, wc, e })}`)
-        }
-    }
-
     info(msg, data = '') {
         console.log(msg, data)
-        fs.appendFileSync('result', { msg, data })
+        fs.appendFileSync('result', JSON.stringify({ msg, data }))
     }
 
     debug(msg, data = '') {

@@ -48,7 +48,6 @@ module.exports = class extends EventEmitter {
 
     async requireScan(qrCodeId, status) {
         let body = await this.rp.get(`https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=${qrCodeId}&tip=1&r=${new Date().getTime()}&_=${new Date().getTime()}`)
-        this.debug(body)
         let loginStatus = rt.parse(body)['window.code']
         this.debug('login status', { loginStatus })
         switch (loginStatus) {
@@ -80,6 +79,7 @@ module.exports = class extends EventEmitter {
 
     resendInit() {
         // this.emit(Constant.MsgOutType.Qr, this.qrUrl)
+        this.debug('resend init', { user: this.user, initContact: this.initContact })
         if (this.user && this.initContact) this.emit(Constant.MsgOutType.Init, this.user)
         else this.login()
     }
@@ -100,6 +100,7 @@ module.exports = class extends EventEmitter {
         body = JSON.parse(body)
         this.debug('init', body)
         this.user = body.User
+        this.initContact = body.ContactList
         this.emit(Constant.MsgOutType.Init, body.User)
         this.updateSyncKey(body.SyncKey)
         this.persistence()
@@ -113,7 +114,7 @@ module.exports = class extends EventEmitter {
 
     async generalTry(operation, ...args) {
         try {
-            // console.log(this)
+            if (this.break) return
             return await operation.call(this, ...args)
         } catch (e) {
             this.offLine()
@@ -132,13 +133,12 @@ module.exports = class extends EventEmitter {
             })
             contactList = JSON.parse(contactList)
             this.contactList = contactList.MemberList
-            this.debug('contact list', contactList)
+            // this.debug('contact list', contactList)
             return this.contactList
         })
     }
 
     async syncCheck() {
-        if (this.break) return
         let body = await this.rp.get({
             url: `https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=${new Date().getTime()}&skey=${this.skey}&sid=${this.wxsid}&uin=${this.wxuin}&deviceid=${this.deviceID}&synckey=${this.syncKey}&_=${new Date().getTime()}`,
             headers: this.generalHeaders(),
@@ -188,14 +188,15 @@ module.exports = class extends EventEmitter {
             msg.To = this.contactList.find(c => c.UserName === msg.ToUserName)
             // let index = msg.Content.indexOf('<br/>')
             // index === -1 ? index = 0 : index += 5
-            // this.sendMessage(msg.FromUserName, msg.Content.substring(index, msg.Content.length))
+            // this.sendMessage('filehelper', msg.Content.substring(index, msg.Content.length))
         })
-        this.emit(Constant.MsgOutType.Msg, body.AddMsgList)
+        this.emit(Constant.MsgOutType.Msg, { msgList: body.AddMsgList })
     }
 
     async sendMessage(toUserName, msg) {
         return await this.generalTry(async () => {
             let localID = this.getLocalId()
+            this.debug('prepare to send message', { toUserName, msg })
             let body = await this.rp.post({
                 url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=${this.pass_ticket}`,
                 headers: this.generalHeaders(),
@@ -219,8 +220,7 @@ module.exports = class extends EventEmitter {
             })
             body = JSON.parse(body)
             this.debug('send msg result', { body })
-            // if(body.)
-            return true
+            return body.BaseResponse.Ret === 0
         })
     }
 
@@ -266,7 +266,7 @@ module.exports = class extends EventEmitter {
     }
 
     debug(msg, data) {
-        console.log(msg, data ? data : '')
+        // console.log(msg, data ? data : '')
         require('fs').appendFileSync('result_wc', JSON.stringify({ msg, data }) + '\n')
     }
 }

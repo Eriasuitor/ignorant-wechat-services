@@ -2,6 +2,7 @@
 const EventEmitter = require('events').EventEmitter
 
 const rp = require('request-promise')
+const r = require('request')
 const rt = require('./request-tool')
 const fs = require('fs')
 const lp = require('./language-packs')
@@ -22,10 +23,12 @@ module.exports = class extends EventEmitter {
         this.pass_ticket
         this.syncKeyList
         this.break = false
+        this.r = r
         this.jar = rp.jar()
         this.rp = rp.defaults({ jar: this.jar })
         this.lp = lp.cn
         this.host = 'https://wx2.qq.com'
+        this.cdnHost = 'http://120.78.93.110:1001/iws'
         this.deviceID = 'e401182249799540'
     }
 
@@ -98,11 +101,18 @@ module.exports = class extends EventEmitter {
             })
         })
         body = JSON.parse(body)
-        this.debug('init', body)
+        this.updateSyncKey(body.SyncKey)
         this.user = body.User
         this.initContact = body.ContactList
-        this.emit(Constant.MsgOutType.Init, body.User)
-        this.updateSyncKey(body.SyncKey)
+        await this.generalTry(this.cacheHeadImg, [this.user])
+        await this.generalTry(this.cacheHeadImg, this.initContact)
+        this.debug('init', body)
+        this.emit(Constant.MsgOutType.Init, this.user)
+        // console.log(`${this.host}${body.ContactList[0].HeadImgUrl}`)
+        // this.r.get({
+        //     url: `${this.host}${body.ContactList[0].HeadImgUrl}`,
+        //     headers: this.generalHeaders()
+        // }).pipe(fs.createWriteStream("avatar"))
         this.persistence()
         await this.getContact()
         return this.generalTry(this.syncCheck)
@@ -122,7 +132,7 @@ module.exports = class extends EventEmitter {
         }
     }
 
-    getContact() {
+    async getContact() {
         /**
          * Used by foreigner so catch error here
          */
@@ -134,6 +144,7 @@ module.exports = class extends EventEmitter {
             contactList = JSON.parse(contactList)
             this.contactList = contactList.MemberList
             // this.debug('contact list', contactList)
+            await this.generalTry(this.cacheHeadImg, this.contactList)
             return this.contactList
         })
     }
@@ -144,7 +155,7 @@ module.exports = class extends EventEmitter {
             headers: this.generalHeaders(),
             encoding: 'utf-8'
         })
-        this.debug(body)
+        this.debug('sync checkt result', body)
         let { retcode, selector } = JSON.parse(rt.parse(body)['window.synccheck'].replace(/(\w+):/isg, '"$1":'))
         if (selector != 0) {
             if (selector === 7) {
@@ -224,6 +235,38 @@ module.exports = class extends EventEmitter {
         })
     }
 
+    cacheHeadImg(contactList) {
+        let headers = this.generalHeaders()
+        contactList.forEach(c => {
+            // r.get({
+            //     url: `http://localhost:1001/iws/cgi-bin/mmwebwx-bin/webwxgetheadimg&seq=0&user`,
+            //     headers:{
+            //         'Content-Type': 'application/octet-stream'
+            //     }
+            // }).pipe(r.post({
+            //     url: `http://localhost:1001/iws/22222`,
+            //     headers:{
+
+            //     }
+            // }))
+            let tempHeadImg = this.cdnHost + c.HeadImgUrl.replace(/[?&=]/g, '_')
+            this.r.get({
+                url: this.host + c.HeadImgUrl,
+                headers
+            }).pipe(this.r.post({
+                url: tempHeadImg,
+                headers: {
+                    'Content-Type': 'application/octet-stream'
+                }
+            })).on('response', resp => {
+                if (resp.statusCode !== 200) this.error('cache head img failed', { code: resp.statusCode })
+            }).on('error', error => {
+                this.error('cache head img error', { error })
+            })
+            c.HeadImgUrl = tempHeadImg
+        })
+    }
+
     offLine() {
         this.break = true
     }
@@ -258,7 +301,7 @@ module.exports = class extends EventEmitter {
 
     error(msg, data) {
         console.log(msg, data ? data : '')
-        throw new Error(msg, data)
+        // throw new Error(msg, data)
     }
 
     warn(msg, data) {

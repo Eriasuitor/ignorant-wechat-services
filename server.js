@@ -182,7 +182,7 @@ class Api {
                 let wc = this.wcsServer.getWc(userId)
                 this.debug('get contact', { userId, q, wc: wc != undefined })
                 if (wc) {
-                    resp.status(200).json(wc.contactList.filter(_ => _.NickName.search(q) != -1) || [])
+                    resp.status(200).json(wc.contactList.filter(_ => _.NickName.search(q) != -1))
                 }
                 else {
                     resp.sendStatus(404)
@@ -210,10 +210,10 @@ class Api {
                 resp.sendStatus(500)
             }
         })
-        this.app.use(err => {
+        this.app.use((err, req, resp, next) => {
             if (err) {
                 this.error(err)
-                res.sendStatus(500)
+                resp.sendStatus(500)
             }
         })
         this.app.listen(8082)

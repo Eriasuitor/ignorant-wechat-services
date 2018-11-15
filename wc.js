@@ -88,8 +88,8 @@ module.exports = class extends EventEmitter {
     resendInit() {
         // this.emit(Constant.MsgOutType.Qr, this.qrUrl)
         this.debug('resend init', { user: this.user })
-        if (this.user) this.emit(Constant.MsgOutType.Init, this.user)
-        else this.login()
+        this.emit(Constant.MsgOutType.Init, this.user)
+        this.emit(Constant.MsgOutType.Qr, { url: this.qrUrl })
     }
 
     async init() {

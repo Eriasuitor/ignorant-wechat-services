@@ -93,6 +93,7 @@ class Server {
         this.debug('user try to login', { userId, record: record != undefined })
         if (record) return record.resendInit()
         let wc = new WcChil()
+        this.setWc(userId, wc)
         this.info('user wc created', { userId })
         wc.on('error', e => {
             this.error(e)
@@ -116,7 +117,6 @@ class Server {
                 }
             })
         })
-        this.setWc(userId, wc)
         wc.login()
     }
 

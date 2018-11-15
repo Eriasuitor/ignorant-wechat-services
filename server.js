@@ -2,13 +2,31 @@ const WebSocket = require('ws')
 const Wc = require('./wc')
 const fs = require('fs')
 const express = require('express')
-// on(event: 'connection', cb: (this: WebSocket, socket: WebSocket, request: http.IncomingMessage) => void): this;
-//         on(event: 'error', cb: (this: WebSocket, error: Error) => void): this;
-//         on(event: 'headers', cb: (this: WebSocket, headers: string[], request: http.IncomingMessage) => void): this;
-//         on(event: 'listening', cb: (this: WebSocket) => void): this;
-//         on(event: string | symbol, listener: (this: WebSocket, ...args: any[]) => void): this;
-
 const Constant = require('./constant')
+
+Object.assign(global, require('./logger'))
+
+class WcChil extends Wc {
+    info(msg, data = {}) {
+        super.info(msg, data)
+        Logger.info(msg, data)
+    }
+
+    error(msg, data = {}) {
+        super.error(msg, data)
+        Logger.error(msg, data)
+    }
+
+    warn(msg, data = {}) {
+        super.warn(msg, data)
+        Logger.warn(msg, data)
+    }
+
+    debug(msg, data = {}) {
+        super.debug()
+        Logger.debug(msg, data)
+    }
+}
 
 class Server {
     constructor() {
@@ -74,12 +92,11 @@ class Server {
         let record = this.getWc(userId)
         this.debug('user try to login', { userId, record: record != undefined })
         if (record) return record.resendInit()
-        let wc = new Wc()
+        let wc = new WcChil()
         this.info('user wc created', { userId })
         wc.on('error', e => {
             this.error(e)
             this.deleteWc(userId)
-
         })
         Object.values(Constant.MsgOutType).forEach(type => {
             wc.on(type, data => {
@@ -142,16 +159,15 @@ class Server {
     }
 
     info(msg, data = '') {
-        console.log(msg, data)
-        fs.appendFileSync('result', JSON.stringify({ msg, data }) + '\n')
+        Logger.info(msg, data)
     }
 
     debug(msg, data = '') {
-        this.info(msg, data)
+        Logger.debug(msg, data)
     }
 
-    error(msg) {
-        this.info("error", msg)
+    error(msg, data) {
+        Logger.error(msg, data)
     }
 }
 
@@ -205,16 +221,15 @@ class Api {
     }
 
     info(msg, data = '') {
-        console.log(msg, data)
-        fs.appendFileSync('result', JSON.stringify({ msg, data }))
+        Logger.info(msg, data)
     }
 
     debug(msg, data = '') {
-        this.info(msg, data)
+        Logger.debug(msg, data)
     }
 
-    error(msg) {
-        this.info(msg)
+    error(msg, data) {
+        Logger.error(msg, data)
     }
 }
 

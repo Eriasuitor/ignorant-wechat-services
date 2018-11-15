@@ -51,7 +51,7 @@ module.exports = class extends EventEmitter {
         this.debug('get qr', { url: this.qrUrl })
         // await this.rp.get(this.qrUrl).pipe(fs.createWriteStream('./qrcode.png'))
         this.info(this.lp.requireScan, { url: this.qrUrl })
-        return this.generalTry(this.requireScan, qrCodeId)
+        this.generalTry(this.requireScan, qrCodeId)
     }
 
     async requireScan(qrCodeId, status) {
@@ -60,18 +60,21 @@ module.exports = class extends EventEmitter {
         this.debug('login status', { loginStatus })
         switch (loginStatus) {
             case '408':
-                return this.generalTry(this.requireScan, qrCodeId, 408)
+                this.generalTry(this.requireScan, qrCodeId, 408)
+                return
             case '201':
                 if (status != 201) {
                     this.emit(Constant.MsgOutType.Scanned)
                     this.info(this.lp.scanSuccess, { qrCodeId })
                 }
                 await new Promise(resolve => setTimeout(resolve, 3000))
-                return this.generalTry(this.requireScan, qrCodeId, 201)
+                this.generalTry(this.requireScan, qrCodeId, 201)
+                return
             case '200':
                 let redirect = rt.parse(body)['window.redirect_uri']
                 this.info(this.lp.loginSuccess, { qrCodeId, redirect })
-                return this.generalTry(this.redirect, redirect)
+                this.generalTry(this.redirect, redirect)
+                return
             default:
                 throw new Error('invalid widow.code when login: ' + loginStatus)
         }
@@ -82,7 +85,7 @@ module.exports = class extends EventEmitter {
         this.pass_ticket = rt.findNode(body, 'pass_ticket')
         this.skey = rt.findNode(body, 'skey')
         true && ({ wxuin: this.wxuin, wxsid: this.wxsid, webwx_data_ticket: this.webwx_data_ticket } = rt.parse(this.jar.getCookieString(this.host)))
-        return this.generalTry(this.init)
+        this.generalTry(this.init)
     }
 
     resendInit() {
@@ -115,7 +118,7 @@ module.exports = class extends EventEmitter {
         this.emit(Constant.MsgOutType.Init, this.user)
         this.persistence()
         await this.getContact()
-        return this.generalTry(this.syncCheck)
+        this.generalTry(this.syncCheck)
     }
 
     persistence() {
@@ -178,7 +181,7 @@ module.exports = class extends EventEmitter {
         if (retcode != 0) {
             throw new Error(`retcode ${retcode} is invalid`)
         }
-        return this.generalTry(this.syncCheck)
+        this.generalTry(this.syncCheck)
     }
 
     async sync() {
@@ -217,7 +220,7 @@ module.exports = class extends EventEmitter {
     }
 
     async sendMessage(toUserName, msg) {
-        return await this.generalTry(async () => {
+        return this.generalTry(async () => {
             let localID = this.getLocalId()
             this.debug('prepare to send message', { toUserName, msg })
             let body = await this.rp.post({
@@ -289,7 +292,7 @@ module.exports = class extends EventEmitter {
 
     onLine() {
         this.break = false
-        return this.generalTry(this.syncCheck)
+        this.generalTry(this.syncCheck)
     }
 
     updateSyncKey(syncKeyList) {

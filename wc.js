@@ -252,8 +252,8 @@ module.exports = class extends EventEmitter {
 
     async cacheHeadImg(contactList) {
         let headers = this.generalHeaders()
-        return Promise.all(contactList.map(c =>
-            new Promise(resolve => {
+        contactList.forEach(async c => {
+            await new Promise(resolve => {
                 let tempHeadImg = this.cdnHost + c.HeadImgUrl.replace(/[?&=]/g, '_')
                 this.r.get({
                     url: this.host + c.HeadImgUrl,
@@ -268,7 +268,7 @@ module.exports = class extends EventEmitter {
                     resolve()
                 })
             })
-        ))
+        })
     }
 
     async deleteHeadImg(contactList) {

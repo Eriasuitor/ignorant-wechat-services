@@ -112,13 +112,13 @@ module.exports = class extends EventEmitter {
         this.updateSyncKey(body.SyncKey)
         this.user = body.User
         this.initContact = body.ContactList
-        await this.generalTry(this.cacheHeadImg, [this.user])
-        await this.generalTry(this.cacheHeadImg, this.initContact)
+        // await this.generalTry(this.cacheHeadImg, [this.user])
+        // await this.generalTry(this.cacheHeadImg, this.initContact)
         this.debug('init', { user: this.user, initContact: this.initContact })
         this.emit(Constant.MsgOutType.Init, this.user)
         this.persistence()
-        await this.getContact()
-        this.generalTry(this.syncCheck)
+        // await this.getContact()
+        // this.generalTry(this.syncCheck)
     }
 
     persistence() {
@@ -140,9 +140,9 @@ module.exports = class extends EventEmitter {
     async destory() {
         this.generalTry(async () => {
             this.break = true
-            await this.generalTry(this.deleteHeadImg, [this.user])
-            await this.generalTry(this.deleteHeadImg, this.initContact)
-            await this.generalTry(this.deleteHeadImg, this.contactList)
+            // await this.generalTry(this.deleteHeadImg, [this.user])
+            // await this.generalTry(this.deleteHeadImg, this.initContact)
+            // await this.generalTry(this.deleteHeadImg, this.contactList)
             this.info('destory success')
         })
     }
@@ -158,7 +158,7 @@ module.exports = class extends EventEmitter {
             })
             contactList = JSON.parse(contactList)
             this.contactList = contactList.MemberList
-            await this.generalTry(this.cacheHeadImg, this.contactList)
+            // await this.generalTry(this.cacheHeadImg, this.contactList)
             this.debug('contact list', { contactList: this.contactList })
             return this.contactList
         })

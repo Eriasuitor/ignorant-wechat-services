@@ -112,6 +112,7 @@ module.exports = class extends EventEmitter {
         this.updateSyncKey(body.SyncKey)
         this.user = body.User
         this.initContact = body.ContactList
+        this.chatSet = body.ChatSet.split(',').filter(_ => _.startsWith('@'))
         // await this.generalTry(this.cacheHeadImg, [this.user])
         // await this.generalTry(this.cacheHeadImg, this.initContact)
         this.debug('init', { user: this.user, initContact: this.initContact })
@@ -162,6 +163,30 @@ module.exports = class extends EventEmitter {
             this.debug('contact list', { contactList: this.contactList })
             return this.contactList
         })
+    }
+
+    async getContactBatch() {
+        return this.generalTry(async () => {
+            let contactList = await this.rp.post({
+                url: `https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact?lang=zh_CN&pass_ticket=${this.pass_ticket}&r=${new Date().getTime()}&seq=0&skey=${this.skey}`,
+                headers: this.generalHeaders(),
+                body: JSON.stringify({
+                    "BaseRequest": {
+                        "Uin": this.wxuin,
+                        "Sid": this.wxsid,
+                        "Skey": this.skey,
+                        "DeviceID": this.deviceID
+                    },
+                    "Count": this.chatSet.length,
+                    "List": this.chatSet.map(_ => ({UserName: _, EncryChatRoomId: '', ChatRoomId: ''}))
+                })
+            })
+            contactList = JSON.parse(contactList)
+            this.contactListBatch = contactList.ContactList
+            // await this.generalTry(this.cacheHeadImg, this.contactList)
+            this.debug('contact batch list', { contactList: this.contactList })
+            return this.contactListBatch
+        }) 
     }
 
     async syncCheck() {

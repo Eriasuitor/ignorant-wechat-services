@@ -4,7 +4,7 @@ const fs =require('fs')
 var inquirer = require('inquirer');
 var chalkPipe = require('chalk-pipe');
 
-let friends = []
+let friends = [], contactBatch = []
 // inquirer.prompt([{
 //     type: 'input',
 //     name: 'text',
@@ -30,16 +30,31 @@ wc.on(Constant.MsgOutType.Init, async (user) => {
 	console.log('您是：')
 	console.log(user)
 	friends = await wc.getContact()
+	contactBatch = await wc.getContactBatch()
+	contactBatch2 = await wc.getContactBatch()
+	friends.concat(contactBatch)
 	fs.writeFileSync('friends.json', JSON.stringify(friends))
+	fs.writeFileSync('contactBatch.json', JSON.stringify(contactBatch))
+	fs.writeFileSync('contactBatch2.json', JSON.stringify(contactBatch2))
 	console.log('所有好友：')
 	console.log(friends.map(_ => ({name: _.NickName, uid: _.UserName})))
 	cur()
 })
 
 wc.login()
-
-let cur = async () => {
-	while(true){
+operationActions = {
+	'白名单模式': async () => {
+		// let toSend = friends.filter(_ => _.UserName.startWith('@@')).map(_ => _.UserName)
+		let whiteList = require('./whitelist')
+		let toSend = friends.filter(_ => whiteList.includes(_.NickName)).map(_ => _.UserName)
+		console.log(`发现${whiteList.length}个，匹配成功${toSend.length}个`)
+		for(let i = 0; i < toSend.length; i++){
+			let result = await wc.sendMessage(toSend[i], answer.text)
+			console.log(`[${i+1}/${toSend.length}]发送结果: ` + JSON.stringify(result))
+			await new Promise(resolve => setTimeout(resolve, 10000))
+		}
+	},
+	'单发模式': async () => {
 		await inquirer.prompt([{
 			type: 'input',
 			name: 'target',
@@ -49,18 +64,34 @@ let cur = async () => {
 			name: 'text',
 			message: "输入信息内容"
 		}]).then(async answer => {
-			if(answer.target === 'white') {
-				// let toSend = friends.filter(_ => _.UserName.startWith('@@')).map(_ => _.UserName)
-				let whiteList = require('./whitelist')
-				let toSend = friends.filter(_ => whiteList.includes(_.NickName)).map(_ => _.UserName)
-				for(let i = 0; i < toSend.length; i++){
-					let result = await wc.sendMessage(toSend[i], answer.text)
-					console.log(`[${i+1}/${toSend.length}]发送结果: ` + JSON.stringify(result))
-					return await new Promise(resolve => setTimeout(resolve, 10000))
-				}
-			}
+			answer.target = friends.find(_ => _.NickName === answer.target).UserName
 			let result = await wc.sendMessage(answer.target, answer.text)
 			console.log('发送结果: ' + JSON.stringify(result))
 		})
+	},
+	'群无差别群发模式': async () => {
+		await inquirer.prompt([{
+			type: 'input',
+			name: 'text',
+			message: "输入信息内容"
+		}]).then(async answer => {
+			answer.target = friends.filter(_ => _.UserName.startsWith('@@')).map(_ => _.UserName)
+			let result = await wc.sendMessage(answer.target, answer.text)
+			console.log('发送结果: ' + JSON.stringify(result))
+		})
+	}
+}
+let cur = async () => {
+	while(true){
+		let operation = await inquirer.prompt([{
+			type: 'list',
+			name: 'operation',
+			choices: [
+				'白名单模式',
+				'单发模式',
+				'群无差别群发模式'
+			]
+		}])
+		await operationActions[operation.operation]()
 	}
 }

@@ -48,11 +48,18 @@ operationActions = {
 		let whiteList = require('./whitelist')
 		let toSend = friends.filter(_ => whiteList.includes(_.NickName)).map(_ => _.UserName)
 		console.log(`发现${whiteList.length}个，匹配成功${toSend.length}个`)
+		let answer = await inquirer.prompt([{
+			type: 'input',
+			name: 'text',
+			message: "输入信息内容"
+		}])
+		if(answer.text === 'q') return
 		for(let i = 0; i < toSend.length; i++){
 			let result = await wc.sendMessage(toSend[i], answer.text)
 			console.log(`[${i+1}/${toSend.length}]发送结果: ` + JSON.stringify(result))
 			await new Promise(resolve => setTimeout(resolve, 10000))
 		}
+		return
 	},
 	'单发模式': async () => {
 		await inquirer.prompt([{

@@ -37,16 +37,17 @@ wc.on(Constant.MsgOutType.Init, async (user) => {
 	fs.writeFileSync('contactBatch.json', JSON.stringify(contactBatch))
 	fs.writeFileSync('contactBatch2.json', JSON.stringify(contactBatch2))
 	console.log('所有好友：')
-	console.log(friends.map(_ => ({name: _.NickName, uid: _.UserName})))
+	console.log(friends.map(_ => _.NickName).join(','))
 	cur()
 })
 
 wc.login()
+
 operationActions = {
 	'白名单模式': async () => {
 		// let toSend = friends.filter(_ => _.UserName.startWith('@@')).map(_ => _.UserName)
-		let listData = require('fs').readFileSync('./whitelist.csv').toString().replace(/\/r/g, '')
-		let whiteList = listData.split(',\n')
+		let listData = require('fs').readFileSync('./whitelist.csv').toString().replace(/\r/g, '')
+		let whiteList = listData.split('\n')
 		let toSend = whiteList.map(_ => friends.find(_2 => _2.NickName === _)).filter(_ => !!_)
 		console.log(`匹配成功：${toSend.map(_ => _.NickName).join(', ') || '无'}`)
 		console.log(`匹配失败：${whiteList.filter(_ => !friends.find(_2 => _2.NickName === _)).join(', ') || '无'}`)
